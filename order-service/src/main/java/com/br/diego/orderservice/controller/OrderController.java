@@ -9,12 +9,14 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.circuitbreaker.resilience4j.Resilience4JCircuitBreaker;
 import org.springframework.cloud.circuitbreaker.resilience4j.Resilience4JCircuitBreakerFactory;
 import org.springframework.cloud.stream.function.StreamBridge;
+import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.UUID;
+import java.util.concurrent.ExecutorService;
 import java.util.function.Supplier;
 
 @RestController
@@ -27,9 +29,11 @@ public class OrderController {
     private final InventoryClient inventoryClient;
     private final Resilience4JCircuitBreakerFactory circuitBreakerFactory;
     private final StreamBridge streamBridge;
+    private final ExecutorService traceableExecutorService;
 
     @PostMapping
     public String placeOrder(@RequestBody OrderDto orderDto){
+        circuitBreakerFactory.configureExecutorService(traceableExecutorService);
         Resilience4JCircuitBreaker circuitBreaker = circuitBreakerFactory.create("inventory");
         Supplier<Boolean> booleanSupplier = () -> orderDto.getOrderLineItemsList().stream()
                 .allMatch(orderLineItems -> inventoryClient.checkStock(orderLineItems.getSkuCode()));
@@ -43,7 +47,7 @@ public class OrderController {
 
             orderRepository.save(order);
             log.info("Sending Order Details to Notification Service");
-            streamBridge.send("notificationEventSupplier-out-0", order.getId());
+            streamBridge.send("notificationEventSupplier-out-0", MessageBuilder.withPayload(order.getId()).build());
 
             return "Order Place Successfully";
         } else {
