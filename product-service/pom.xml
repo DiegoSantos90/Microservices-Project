@@ -75,7 +75,11 @@
 			<artifactId>spring-security-oauth2-jose</artifactId>
 			<version>5.7.3</version>
 		</dependency>
-
+		<dependency>
+			<groupId>net.logstash.logback</groupId>
+			<artifactId>logstash-logback-encoder</artifactId>
+			<version>7.2</version>
+		</dependency>
 	</dependencies>
 
 	<build>
